@@ -45,28 +45,50 @@
 
 ---
 
-## 🛠️ 開發者環境建置 (Developer Setup)
+---
 
-如果您要在全新的電腦（例如 Windows 測試機）上運行此專案，請按照以下步驟建立環境：
+## 🪟 Windows 從零到打包完整指南 (Windows Setup & Packaging)
 
-**1. 複製專案**
-```bash
-git clone [您的 Git 網址]
-cd SI-system
-```
+如果您拿到一台全新的 Windows 電腦，請嚴格按照以下順序操作，以確保爬蟲與打包環境正確建立：
 
-**2. 安裝 Python 依賴套件**
-```bash
-pip install -r requirements.txt
-```
+### 第一階段：基礎環境安裝
+1. **安裝 Python**：
+   * 前往 [Python 官方網站](https://www.python.org/downloads/) 下載最新的 Python 3 穩定版 (建議 3.10 ~ 3.12)。
+   * ⚠️ **極度重要**：安裝時，視窗最下方的 **`Add python.exe to PATH` 務必打勾**，再點擊安裝。
+2. **安裝 Google Chrome**：
+   * `DrissionPage` 與 `seleniumbase` 爬蟲需要依賴本機的 Chrome 瀏覽器。
+   * 您可透過網頁下載，或在終端機輸入：`winget install Google.Chrome`。
 
-**3. 安裝 Playwright 瀏覽器核心 (⚠️ 重要！)**
-由於 UN 等特定來源需要啟動真實瀏覽器，請務必執行此指令下載瀏覽器核心：
-```bash
-playwright install
-```
+### 第二階段：建立專案虛擬環境 (VSCode)
+1. 用 VSCode 開啟本專案資料夾。
+2. 在 VSCode 終端機輸入以下指令建立虛擬環境：
+   ```bash
+   python -m venv venv
+   ```
+3. 按下 `Ctrl + Shift + P`，輸入並選擇 **`Python: Select Interpreter`**。
+4. 在清單中選擇帶有 `('./venv/Scripts/python.exe')` 的選項。
+5. 關閉目前的終端機，並透過 `Terminal -> New Terminal` 開啟新終端機。確認命令列最前方出現 **`(venv)`** 的綠色字樣。
 
-**4. 啟動應用程式**
-```bash
-python main.py
-```
+### 第三階段：安裝依賴套件
+1. 安裝核心套件 (清單已包含 playwright, DrissionPage, seleniumbase 等)：
+   ```bash
+   pip install -r requirements.txt
+   ```
+2. 下載 Playwright 瀏覽器核心 (必須執行)：
+   ```bash
+   playwright install
+   ```
+
+### 第四階段：測試與打包
+1. **實機測試**：
+   ```bash
+   python main.py
+   ```
+   * 測試各項爬蟲是否正常，並確認系統匣圖示 (紅點) 與背景功能運作無誤。
+2. **編譯打包 (轉為 .exe)**：
+   確認測試無誤後，執行以下打包指令：
+   ```bash
+   pyinstaller --noconfirm --windowed --icon=assets/app_icon.png --add-data "assets;assets" main.py
+   ```
+3. **完成**：
+   打包完成後，前往專案內的 `dist` 資料夾，裡面的 `main.exe` (可自行改名為 `SIS.exe`) 即為無需 Python 環境也能獨立運行的最終發布版本！
