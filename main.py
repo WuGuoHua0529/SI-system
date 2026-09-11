@@ -82,7 +82,6 @@ class App(ctk.CTk):
         # 啟動時先顯示 loading 蓋板
         self._show_splash()
         self.after(100, self._init_app)
-        self.bind("<FocusIn>", self._clear_app_badge)
 
     def _check_tray_events(self):
         import platform
@@ -108,20 +107,29 @@ class App(ctk.CTk):
         return image
 
     def set_app_badge(self, active):
+        if getattr(self, '_is_batch_updating', False):
+            return
         import platform
-        if active:
-            self._badge_active = True
         if platform.system() == "Windows":
             if hasattr(self, 'tray_icon') and self.tray_icon:
                 try:
-                    import os
-                    from PIL import Image
-                    icon_name = 'tray_icon_alert.png' if active else 'tray_icon.png'
-                    icon_path = os.path.join(os.path.dirname(__file__), 'assets', icon_name)
-                    if os.path.exists(icon_path):
-                        self.tray_icon.icon = Image.open(icon_path)
-                except:
-                    pass
+                    if not hasattr(self, '_tray_img_normal'):
+                        import os
+                        from PIL import Image
+                        self._tray_img_normal = Image.open(os.path.join(os.path.dirname(__file__), 'assets', 'tray_icon.png'))
+                        self._tray_img_alert = Image.open(os.path.join(os.path.dirname(__file__), 'assets', 'tray_icon_alert.png'))
+                    self.tray_icon.icon = self._tray_img_alert if active else self._tray_img_normal
+                except Exception as e:
+                    print(e)
+        elif platform.system() == "Darwin":
+            try:
+                import AppKit
+                if active:
+                    AppKit.NSApp.dockTile().setBadgeLabel_("1")
+                else:
+                    AppKit.NSApp.dockTile().setBadgeLabel_(None)
+            except:
+                pass
         elif platform.system() == "Darwin":
             try:
                 import AppKit
@@ -132,10 +140,6 @@ class App(ctk.CTk):
             except:
                 pass
 
-    def _clear_app_badge(self, event=None):
-        if getattr(self, '_badge_active', False):
-            self._badge_active = False
-            self.set_app_badge(False)
 
     def setup_tray_icon(self):
         import platform
@@ -580,7 +584,8 @@ class App(ctk.CTk):
                 self.store.update_rule(r)
                 changed = True
         if changed:
-            self.after(0, self.refresh_tables)
+            self.tabs[name].refresh_table()
+            self._refresh_tab_badges()
         
         # 動態控制 API 除錯區域的顯示 (目前只有 ETSI 具有 API 除錯資訊)
         if hasattr(self, 'debug_frame'):
@@ -651,6 +656,9 @@ class App(ctk.CTk):
         
     def _refresh_tab_badges(self):
         """掃描各分類的更新狀態，改用綠色邊框高亮取代紅點"""
+        has_global_update = any(r.get("tab_unread") for r in self.store.rules)
+        self.set_app_badge(has_global_update)
+        
         for source, btn in self.tab_buttons.items():
             rules = self.store.get_rules_by_source(source)
             has_update = any(r.get("tab_unread") for r in rules)
@@ -732,7 +740,6 @@ class App(ctk.CTk):
         if old_version and old_version != "無資料" and new_normalized != old_normalized:
             rule["tab_unread"] = True
             rule["lastUpdatedDate"] = datetime.now().strftime("%Y-%m-%d")
-            self.after(0, lambda: self.set_app_badge(True))
         
         self.store.update_rule(rule)
 
@@ -771,6 +778,7 @@ class App(ctk.CTk):
         self._run_generic_scraper("UN", check_un_updates, show_success_msg)
 
     def check_all_updates(self, is_auto=False):
+        self._is_batch_updating = True
         has_un = any(rule.get("source") == "UN" for rule in self.store.rules)
         if has_un and not is_auto:
             proceed = messagebox.askokcancel("提示", "更新佇列中包含 UN 資料，需要進行瀏覽器安全驗證。\n稍後將彈出驗證視窗，請勿移動或關閉，並配合完成驗證程序。\n\n確定要更新嗎？")
@@ -813,6 +821,8 @@ class App(ctk.CTk):
                     func(show_success_msg=False)
                     
             finally:
+                self._is_batch_updating = False
+                self.after(0, self._refresh_tab_badges)
                 self.after(0, lambda: self._update_splash_status("更新完成！", progress=1.0))
                 self.after(500, self._dismiss_splash)
                 self.after(600, lambda: messagebox.showinfo("更新完成", "所有追蹤項目更新完畢！"))
