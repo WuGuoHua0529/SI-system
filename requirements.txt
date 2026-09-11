@@ -1,0 +1,9 @@
+customtkinter
+playwright
+pystray
+Pillow
+requests
+beautifulsoup4
+pandas
+openpyxl
+pyinstaller
