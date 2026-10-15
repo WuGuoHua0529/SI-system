@@ -27,19 +27,19 @@ def import_excel_rules(file_path, store):
         skipped_count = 0
         missing_urls = []
         
+        # 使用 mapping 處理大小寫慣例，找不到就直接 upper()
+        SOURCE_NAME_MAP = {
+            "TELCORDIA": "Telcordia", "IEC": "IEC", "ISTA": "ISTA",
+            "ANSI": "ANSI", "ASTM": "ASTM", "DIN": "DIN", "ETSI": "ETSI",
+            "EN": "EN", "ISO": "ISO", "JEDEC": "JEDEC", "JIS": "JIS",
+            "MIL": "MIL", "RTCA": "RTCA", "SAE": "SAE", "DNV": "DNV", "UN": "UN"
+        }
+
         for index, row in df.iterrows():
             platform_val = str(row[platform_col]).strip() if pd.notna(row[platform_col]) else ""
             keyword_val = str(row[id_col]).strip() if pd.notna(row[id_col]) else ""
             url_val = str(row[url_col]).strip() if pd.notna(row[url_col]) else ""
             version_val = str(row[version_col]).strip() if pd.notna(row[version_col]) else ""
-            
-            # 使用 mapping 處理大小寫慣例，找不到就直接 upper()
-            SOURCE_NAME_MAP = {
-                "TELCORDIA": "Telcordia", "IEC": "IEC", "ISTA": "ISTA",
-                "ANSI": "ANSI", "ASTM": "ASTM", "DIN": "DIN", "ETSI": "ETSI",
-                "EN": "EN", "ISO": "ISO", "JEDEC": "JEDEC", "JIS": "JIS",
-                "MIL": "MIL", "RTCA": "RTCA", "SAE": "SAE", "DNV": "DNV", "UN": "UN"
-            }
             
             # 完全空白的列 (或表頭) 就直接跳過
             if (not platform_val and not keyword_val) or keyword_val == "nan":
@@ -60,9 +60,11 @@ def import_excel_rules(file_path, store):
                 # 使用 store 標準方法新增，避免 id 衝突
                 new_rule = store.add_rule(keyword_val, url_val, source)
                 
-                # 如果 Excel 有版本資訊，回填到 previousDocumentName
+                # 如果 Excel 有版本資訊，回填到 previousDocumentName 與 latestDocumentName (初次匯入兩者相同)
                 if version_val and version_val != "nan":
-                    new_rule["previousDocumentName"] = normalize_date(version_val)
+                    norm_ver = normalize_date(version_val)
+                    new_rule["previousDocumentName"] = norm_ver
+                    new_rule["latestDocumentName"] = norm_ver
                     store.update_rule(new_rule)
                     
                 imported_count += 1

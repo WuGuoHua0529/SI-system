@@ -1,6 +1,5 @@
 import requests
 import re
-from bs4 import BeautifulSoup
 
 def check_astm_updates(items):
     """

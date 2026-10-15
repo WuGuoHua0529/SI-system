@@ -1,12 +1,8 @@
 import json
 import os
 import uuid
-from datetime import datetime
 
 RULES_FILE = 'rules.json'
-
-def get_now_str():
-    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 class RulesStore:
     def __init__(self):
@@ -23,11 +19,14 @@ class RulesStore:
                 data = json.load(f)
                 self.rules = data if isinstance(data, list) else []
                 
-                # Migration: Add source if missing
+                # Migration: Add source and tags if missing
                 migrated = False
                 for r in self.rules:
                     if 'source' not in r:
                         r['source'] = 'IEC'
+                        migrated = True
+                    if 'tags' not in r or not isinstance(r.get('tags'), list):
+                        r['tags'] = []
                         migrated = True
                 
                 if migrated:
@@ -43,12 +42,13 @@ class RulesStore:
         except Exception as e:
             print(f"Error saving rules: {e}")
 
-    def add_rule(self, name, query, source):
+    def add_rule(self, name, query, source, tags=None):
         rule = {
             "id": str(uuid.uuid4()),
             "name": name,
             "query": query,
             "source": source,
+            "tags": tags if tags is not None else [],
             "lastChecked": None,
             "latestDocumentName": None,
             "previousDocumentName": None,
@@ -71,3 +71,34 @@ class RulesStore:
 
     def get_rules_by_source(self, source):
         return [r for r in self.rules if r.get('source', 'IEC') == source]
+
+    def get_rules_by_tag(self, tag):
+        return [r for r in self.rules if tag in r.get('tags', [])]
+
+    def add_tag_to_rule(self, rule_id, tag):
+        for r in self.rules:
+            if r['id'] == rule_id:
+                tags = r.setdefault('tags', [])
+                if tag not in tags:
+                    tags.append(tag)
+                    self.save_rules()
+                break
+
+    def remove_tag_from_rule(self, rule_id, tag):
+        for r in self.rules:
+            if r['id'] == rule_id:
+                tags = r.get('tags', [])
+                if tag in tags:
+                    tags.remove(tag)
+                    self.save_rules()
+                break
+
+    def remove_tag_from_all_rules(self, tag):
+        changed = False
+        for r in self.rules:
+            tags = r.get('tags', [])
+            if tag in tags:
+                tags.remove(tag)
+                changed = True
+        if changed:
+            self.save_rules()

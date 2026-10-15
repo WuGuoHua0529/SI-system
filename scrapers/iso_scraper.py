@@ -1,4 +1,3 @@
-import re
 from playwright.sync_api import sync_playwright
 
 def check_iso_updates(items):

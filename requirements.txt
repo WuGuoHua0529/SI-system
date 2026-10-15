@@ -9,3 +9,4 @@ openpyxl
 pyinstaller
 DrissionPage
 seleniumbase
+bcrypt

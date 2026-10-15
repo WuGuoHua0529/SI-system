@@ -1,3 +1,4 @@
+import re
 import traceback
 from playwright.sync_api import sync_playwright
 from bs4 import BeautifulSoup
@@ -47,7 +48,6 @@ def check_jis_updates(items):
                     title = soup.title.text.strip() if soup.title else ""
                     
                     # 方法一：從標題的冒號格式提取年份 (JIS X 0000:2024)
-                    import re
                     year_match = re.search(r':(\d{4})', title)
                     
                     # 方法二：若冒號格式找不到，改從「Most recent」文字區塊找年份

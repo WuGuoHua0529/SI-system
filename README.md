@@ -1,72 +1,124 @@
-# 📖 規範版本監控系統 (Standardized Inspection System) 
+# 📖 規範自動查檢系統 (Standardized Inspection System - SIS)
 
-跨平台桌面自動化工具，專門監控與追蹤各國標準規範 (IEC, ISO, ASTM 等) 的最新版本發布狀態。
-
-## ✨ 核心功能
-* **多來源爬蟲**：支援 15+ 種規範來源。
-* **背景定時更新**：可自訂每日自動比對時間，不干擾作業。
-* **狀態燈與通知**：更新時介面將亮起綠底，同時系統匣圖示切換為紅點。
-* **企業網域鎖定**：限定授權的 Windows 網域才可開啟軟體。
-* **Excel 無縫匯入**：一鍵匯入追蹤清單。
+跨平台桌面自動化工具，專門定時監控與自動比對各國工程標準法規（IEC、ISO、ASTM 等 16 家機構）的最新版本異動狀態。
 
 ---
 
-## 📊 Excel 匯入格式 (必備 4 欄)
+## ✨ 核心特色與功能
 
-請確保 `.xlsx` 遵守以下格式（由左至右）：
+- **16 家權威標準來源自動爬取**：
+  - 支援 `IEC`、`ISO`、`ASTM`、`DIN`、`EN`、`ETSI`、`DNV`、`JEDEC`、`JIS`、`MIL`、`RTCA`、`SAE`、`Telcordia`、`UN`、`ANSI`、`ISTA`。
+  - 支援 UN 規範的 Cloudflare / 瀏覽器安全防護繞過。
+- **Microsoft Teams Webhook 每日自動推播**：
+  - 每日背景排程完成後，自動發送美觀 Adaptive Card 卡片通知。
+  - 按機構分類彙整異動規範（`【機構】• Standard_ID：前次版本 xxxx ➔ 最新版本 yyyy`）。
+  - 當日無更新時亦自動回報安全巡檢報告；手動更新不會觸發通知以防洗版。
+- **NAS 集中式帳號與身分權限分級**：
+  - **集中管理**：透過 `config.json` 設定公司 NAS 路徑，所有員工電腦共用同一份帳號資料庫（`users.json`），免除各自建帳號的困擾。
+  - **管理員（admin）**：可新增/刪除員工帳號、重設密碼、設定登入 Windows 網域限制，並具備 Teams Webhook 與更新時間設定權限。
+  - **一般人員（user）**：僅可設定個人電腦的每日自動更新時間與登出。
+  - **安全防護**：密碼經業界標準 bcrypt 雜湊加密儲存。
+- **公司內部網路防護**：
+  - 啟動前自動探測公司內部網路（NAS 資料夾是否可達），防止非授權外網使用。
+- **Excel 4 欄位無縫匯入與匯出**：
+  - 一鍵匯入/匯出追蹤清單，相容 4 欄標準格式，版本日期自動格式化為 `YYYY / MM / DD`。
+- **背景常駐與靜默巡檢**：
+  - 支援最小化常駐系統匣（System Tray），有新規範異動時圖示自動亮紅點提示。
+
+---
+
+## 📊 Excel 匯入/匯出格式 (標準 4 欄)
+
+匯入與匯出的 `.xlsx` 檔案均嚴格遵守以下 4 欄格式（由左至右）：
 
 | Platform (平台) | Standard_ID (規範編號) | URL (追蹤網址) | Current_Version (目前版本) |
 | :--- | :--- | :--- | :--- |
-| `IEC` | `60068-2-1` | `https://...` | `2023-01` |
+| `IEC` | `60068-2-1` | `https://webstore.iec.ch/...` | `2023 / 01 / 15` |
+| `ISO` | `9001` | `https://www.iso.org/...` | `2025 / -- / --` |
 
-> 💡 **Tip**: 第 1 欄支援合併儲存格；第 2、3 欄為必填；第 4 欄作為更新比對的舊版基準。
+> 💡 **提示**：
+> - 第 1 欄 `Platform` 支援合併儲存格向下自動遞補。
+> - 第 2 欄 `Standard_ID`、第 3 欄 `URL` 為必填。
+> - 第 4 欄 `Current_Version` 初次匯入時將作為新舊版本比對的基準。
 
 ---
 
-## 🚀 開發與部署指南 (Windows 專屬)
+## 🛠️ 開發環境安裝
 
-請嚴格依照以下順序建立乾淨的編譯環境：
+### 1. 基礎環境
+- **Python 3.10+**（Windows 安裝時請務必勾選 **`Add python.exe to PATH`**）。
+- **Google Chrome** 瀏覽器（部分爬蟲驗證需使用）。
 
-### 1. 基礎環境安裝
-* 下載並安裝 [Python 3.10+](https://www.python.org/downloads/)。
-  ⚠️ **極度重要**：安裝時畫面下方的 **`Add python.exe to PATH` 務必打勾**。
-* 下載並安裝 Google Chrome 瀏覽器。
-* 安裝 VSCode，並於左側擴充功能 (`Ctrl+Shift+X`) 安裝微軟官方的 **Python** 擴充套件。
+### 2. 建立虛擬環境與安裝依賴
+在專案根目錄下開啟終端機（Terminal）：
 
-### 2. 建立虛擬環境
-在 VSCode 開啟本專案，並於終端機輸入：
 ```bash
+# 建立虛擬環境
 python -m venv venv
-```
-*(執行後無文字輸出屬正常現象，左側會多出 venv 資料夾)*
 
-**啟動環境**：
-1. 按下 `Ctrl + Shift + P`。
-2. 搜尋並執行 `Python: Select Interpreter`。
-3. 選擇路徑包含 `venv/Scripts/python.exe` 的選項。
-4. 關閉當前終端機，開啟新終端機 (`Terminal -> New Terminal`)，確認游標前方出現 `(venv)`。
+# 啟動虛擬環境 (Windows)
+venv\Scripts\activate
+# 啟動虛擬環境 (macOS)
+source venv/bin/activate
 
-### 3. 安裝依賴套件
-確認在 `(venv)` 狀態下，依序執行：
-```bash
-# 安裝清單內的所有套件
+# 安裝相依套件
 pip install -r requirements.txt
 
-# 下載 UN 爬蟲必備的瀏覽器核心
+# 安裝 Playwright 瀏覽器核心 (UN 規範防護驗證用)
 playwright install
 ```
 
----
-
-## 📦 測試與打包
-
-**啟動測試**：
+### 3. 本地啟動測試
 ```bash
 python main.py
 ```
 
-**轉為獨立執行檔 (.exe)**：
-```bash
-pyinstaller --noconfirm --windowed --icon=assets/app_icon.png --add-data "assets;assets" main.py
+---
+
+## 📦 打包與發布指南
+
+### 情況 A：打包給 Windows 使用者 (產生 `SIS.exe`)
+請在 **Windows 電腦**上啟動虛擬環境後執行：
+```cmd
+pip install pyinstaller
+
+pyinstaller --noconfirm --windowed --name "SIS" ^
+  --icon "assets/app_icon.png" ^
+  --add-data "assets;assets" ^
+  --collect-all "customtkinter" ^
+  main.py
 ```
-> 打包產出物位於 `dist/main.exe`，此檔案可直接交由客戶使用，不需安裝 Python。
+> 打包輸出於 **`dist/SIS/`** 資料夾。
+
+### 情況 B：打包給 macOS 使用者 (產生 `SIS.app`)
+在 Mac 終端機直接執行內建腳本：
+```bash
+chmod +x build_mac.sh
+./build_mac.sh
+```
+> 打包輸出於 **`dist/SIS.app`**。
+
+---
+
+## 🚀 交付與部署規範
+
+分發給終端使用者時，僅需提供包含以下檔案的 `SIS` 資料夾（可壓縮為 zip）：
+
+```text
+SIS/
+├── SIS.exe           # 主執行檔
+├── _internal/        # 核心依賴庫
+├── assets/           # 圖示資源
+└── config.json       # 【唯一必要設定檔】填入公司 NAS 路徑
+```
+
+#### `config.json` 內容範例：
+```json
+{
+  "nas_folder": "\\\\192.168.1.100\\shared\\SIS"
+}
+```
+
+> ⚠️ **注意事項**：
+> - **切勿隨附 `rules.json`、`settings.json`**：這些檔案會在使用者首次啟動時於本機自動生成。
+> - **切勿隨附 `users.json`**：帳號名單統一存放在 `config.json` 所指定的 NAS 資料夾中，集中共用。

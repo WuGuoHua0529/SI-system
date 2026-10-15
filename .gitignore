@@ -11,5 +11,9 @@ dist/
 # macOS 系統暫存檔
 .DS_Store
 
-# 其他可能產生的暫存檔案
+# 其他可能產生的暫存檔案與本地資料檔
 *.log
+config.json
+users.json
+rules.json
+settings.json

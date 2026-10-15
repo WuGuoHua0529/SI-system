@@ -1,5 +1,3 @@
-import re
-
 try:
     from DrissionPage import ChromiumPage, ChromiumOptions
 except ImportError:
