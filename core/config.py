@@ -17,9 +17,17 @@ def get_app_dir():
     return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
+def get_config_path():
+    return os.path.join(get_app_dir(), 'config.json')
+
+
+def config_exists():
+    return os.path.exists(get_config_path())
+
+
 def load_config():
     cfg = dict(DEFAULT_CONFIG)
-    path = os.path.join(get_app_dir(), 'config.json')
+    path = get_config_path()
     if os.path.exists(path):
         try:
             with open(path, 'r', encoding='utf-8') as f:
@@ -29,3 +37,14 @@ def load_config():
         except Exception as e:
             print(f"讀取 config.json 失敗: {e}")
     return cfg
+
+
+def save_config(cfg):
+    path = get_config_path()
+    try:
+        with open(path, 'w', encoding='utf-8') as f:
+            json.dump(cfg, f, ensure_ascii=False, indent=2)
+        return True, "已儲存設定"
+    except Exception as e:
+        print(f"寫入 config.json 失敗: {e}")
+        return False, str(e)

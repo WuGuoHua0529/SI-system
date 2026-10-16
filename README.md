@@ -15,8 +15,8 @@
   - 當日無更新時亦自動回報安全巡檢報告；手動更新不會觸發通知以防洗版。
 - **NAS 集中式帳號與身分權限分級**：
   - **集中管理**：透過 `config.json` 設定公司 NAS 路徑，所有員工電腦共用同一份帳號資料庫（`users.json`），免除各自建帳號的困擾。
-  - **管理員（admin）**：可新增/刪除員工帳號、重設密碼、設定登入 Windows 網域限制，並具備 Teams Webhook 與更新時間設定權限。
-  - **一般人員（user）**：僅可設定個人電腦的每日自動更新時間與登出。
+  - **管理員（admin）**：可新增/刪除員工帳號、重設密碼、設定登入 Windows 網域限制，並具備 Teams Webhook、更新時間與 NAS 路徑設定權限。
+  - **一般人員（user）**：可設定個人電腦的每日自動更新時間、NAS 路徑設定與登出。
   - **安全防護**：密碼經業界標準 bcrypt 雜湊加密儲存。
 - **公司內部網路防護**：
   - 啟動前自動探測公司內部網路（NAS 資料夾是否可達），防止非授權外網使用。
@@ -45,33 +45,69 @@
 
 ## 🛠️ 開發環境安裝
 
-### 1. 基礎環境
-- **Python 3.10+**（Windows 安裝時請務必勾選 **`Add python.exe to PATH`**）。
-- **Google Chrome** 瀏覽器（部分爬蟲驗證需使用）。
+> **前置需求**：
+> - 安裝 Python 3.10+（Windows 安裝時請務必勾選 **`Add python.exe to PATH`**）。
+> - 安裝 Google Chrome 瀏覽器。
 
-### 2. 建立虛擬環境與安裝依賴
-在專案根目錄下開啟終端機（Terminal）：
+### 🪟 Windows 環境安裝
 
-```bash
-# 建立虛擬環境
-python -m venv venv
+在 Windows 建立環境步驟如下：
 
-# 啟動虛擬環境 (Windows)
-venv\Scripts\activate
-# 啟動虛擬環境 (macOS)
-source venv/bin/activate
+1. **建立虛擬環境**：
+   ```cmd
+   python -m venv venv
+   ```
 
-# 安裝相依套件
-pip install -r requirements.txt
+2. **啟動虛擬環境**：
+   ```cmd
+   .\venv\Scripts\activate.bat
+   ```
 
-# 安裝 Playwright 瀏覽器核心 (UN 規範防護驗證用)
-playwright install
-```
+3. **安裝相依套件**：
+   ```cmd
+   pip install -r requirements.txt
+   ```
 
-### 3. 本地啟動測試
-```bash
-python main.py
-```
+4. **安裝 Playwright 瀏覽器核心**：
+   ```cmd
+   playwright install
+   ```
+
+5. **運行**：
+   ```cmd
+   python main.py
+   ```
+
+---
+
+### 🍎 macOS 環境安裝
+
+在 macOS 建立環境步驟如下：
+
+1. **建立虛擬環境**：
+   ```bash
+   python3 -m venv venv
+   ```
+
+2. **啟動虛擬環境**：
+   ```bash
+   source venv/bin/activate
+   ```
+
+3. **安裝相依套件**：
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+4. **安裝 Playwright 瀏覽器核心**：
+   ```bash
+   playwright install
+   ```
+
+5. **運行**：
+   ```bash
+   python3 main.py
+   ```
 
 ---
 
@@ -82,11 +118,7 @@ python main.py
 ```cmd
 pip install pyinstaller
 
-pyinstaller --noconfirm --windowed --name "SIS" ^
-  --icon "assets/app_icon.png" ^
-  --add-data "assets;assets" ^
-  --collect-all "customtkinter" ^
-  main.py
+pyinstaller --noconfirm --windowed --name "SIS" --icon "assets/app_icon.png" --add-data "assets;assets" --collect-all "customtkinter" main.py
 ```
 > 打包輸出於 **`dist/SIS/`** 資料夾。
 
@@ -102,23 +134,24 @@ chmod +x build_mac.sh
 
 ## 🚀 交付與部署規範
 
-分發給終端使用者時，僅需提供包含以下檔案的 `SIS` 資料夾（可壓縮為 zip）：
+打包完成後，發布給同仁時請使用 **`dist/`** 資料夾內的成品（建議將 `dist/SIS/` 資料夾壓縮為 `SIS.zip` 提供給同仁）：
 
 ```text
 SIS/
-├── SIS.exe           # 主執行檔
-├── _internal/        # 核心依賴庫
-├── assets/           # 圖示資源
-└── config.json       # 【唯一必要設定檔】填入公司 NAS 路徑
+├── SIS.exe           # 主執行檔 (同仁雙擊直接開啟)
+├── _internal/        # 核心依賴庫 (請勿刪除)
+├── assets/           # 圖示資源資料夾
+└── config.json       # 【連線設定檔】(首次開啟自動生成)
 ```
 
-#### `config.json` 內容範例：
-```json
-{
-  "nas_folder": "\\\\192.168.1.100\\shared\\SIS"
-}
-```
+### ⚙️ `config.json` 首次設定相關操作
+- **首次啟動自動引導**：  
+  同仁首次啟動軟體時，系統會自動彈出「首次使用設定」視窗，引導同仁輸入或貼上公司 NAS 共用路徑，按下「確定儲存」後系統會自動在目錄建立 `config.json` 並連線 NAS 帳號庫。
+- **稍後設定（單機模式）**：  
+  若當下暫無 NAS 路徑，可點選「稍後設定」進入單機離線模式。
+- **隨時修改同步**：  
+  日後任何人員隨時皆可至右上角「**⚙️ 系統設定 ➔ NAS 路徑設定**」輸入或變更路徑，儲存後會自動同步更新至 `config.json`。
 
-> ⚠️ **注意事項**：
-> - **切勿隨附 `rules.json`、`settings.json`**：這些檔案會在使用者首次啟動時於本機自動生成。
-> - **切勿隨附 `users.json`**：帳號名單統一存放在 `config.json` 所指定的 NAS 資料夾中，集中共用。
+### ⚠️ 注意事項（保持環境乾淨）
+- ❌ **切勿隨附 `rules.json`、`settings.json`**：這些檔案會在每位使用者首次啟動時於本地自動生成個人專屬設定與追蹤清單。
+- ❌ **切勿隨附 `users.json`**：帳號名單統一存放在 `config.json` 所指定的公司 NAS 路徑中集中共用。

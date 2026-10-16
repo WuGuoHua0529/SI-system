@@ -11,7 +11,7 @@ from customtkinter import filedialog
 from core.store import RulesStore
 from core.settings import SettingsStore
 from core.auth import AuthStore
-from core.config import load_config
+from core.config import load_config, save_config, config_exists
 from core.lan_check import check_lan
 from core.excel_importer import import_excel_rules
 from core.excel_exporter import export_excel_rules
@@ -384,7 +384,114 @@ class App(ctk.CTk):
         
         # 進度跑到 100% 後，短暫停留 300ms 讓使用者看見「完成」狀態，隨後展示登入/歡迎畫面
         self._update_splash_status("完成！", progress=1.0)
-        self.after(300, self._show_login_screen)
+        if not config_exists():
+            self.after(300, self._prompt_first_run_nas_config)
+        else:
+            self.after(300, self._show_login_screen)
+
+    def _prompt_first_run_nas_config(self):
+        """首次開啟應用程式（未偵測到 config.json）時彈出引導對話框"""
+        dlg = ctk.CTkToplevel(self)
+        dlg.title("首次開啟設定 - 公司 NAS 路徑")
+        dlg.geometry("540x330")
+        dlg.resizable(False, False)
+        dlg.transient(self)
+        dlg.grab_set()
+
+        # 視窗置中
+        try:
+            dlg.update_idletasks()
+            x = self.winfo_x() + (self.winfo_width() - 540) // 2
+            y = self.winfo_y() + (self.winfo_height() - 330) // 2
+            dlg.geometry(f"+{max(0, x)}+{max(0, y)}")
+        except Exception:
+            pass
+
+        ctk.CTkLabel(
+            dlg,
+            text="首次使用設定",
+            font=ctk.CTkFont(size=20, weight="bold"),
+            text_color="#ffffff"
+        ).pack(pady=(22, 8))
+
+        ctk.CTkLabel(
+            dlg,
+            text="系統偵測到尚未建立連線設定檔 (config.json)。\n若您有公司的 NAS 集中帳號共用路徑，請於下方輸入或貼上；\n若暫無路徑或想先單機試用，可點選「稍後設定」。",
+            font=ctk.CTkFont(size=13),
+            text_color="#9ca3af",
+            justify="center"
+        ).pack(padx=30, pady=(0, 16))
+
+        entry = ctk.CTkEntry(
+            dlg,
+            placeholder_text=r"例如: \\192.168.1.100\shared\SIS 或 Z:\SIS",
+            width=430,
+            height=38
+        )
+        entry.pack(pady=(0, 4))
+        entry.focus_set()
+
+        err_label = ctk.CTkLabel(
+            dlg,
+            text="",
+            font=ctk.CTkFont(size=12),
+            text_color="#ef4444"
+        )
+        err_label.pack(pady=(0, 10))
+
+        def on_confirm():
+            path_val = entry.get().strip()
+            if not path_val:
+                err_label.configure(text="⚠ 請輸入 NAS 路徑，或點選「稍後設定」進入單機模式")
+                entry.focus_set()
+                return
+
+            err_label.configure(text="")
+            status = check_lan(path_val)
+            if status == 'failed':
+                if not messagebox.askyesno(
+                    "連線提示",
+                    f"目前系統似乎無法連線至此路徑：\n{path_val}\n\n(可能尚未連上公司網路，或路徑尚未建立)\n\n確定仍要儲存此路徑嗎？",
+                    parent=dlg
+                ):
+                    return
+            save_config({"nas_folder": path_val})
+            self.auth = AuthStore()
+            dlg.destroy()
+            self._show_login_screen()
+
+        def on_skip():
+            save_config({"nas_folder": ""})
+            self.auth = AuthStore()
+            dlg.destroy()
+            self._show_login_screen()
+
+        btn_box = ctk.CTkFrame(dlg, fg_color="transparent")
+        btn_box.pack(pady=(0, 10))
+
+        ctk.CTkButton(
+            btn_box,
+            text="稍後設定",
+            width=135,
+            height=36,
+            fg_color="#52525b",
+            hover_color="#3f3f46",
+            command=on_skip
+        ).pack(side="left", padx=10)
+
+        ctk.CTkButton(
+            btn_box,
+            text="確定儲存",
+            width=135,
+            height=36,
+            fg_color="#10b981",
+            hover_color="#059669",
+            command=on_confirm
+        ).pack(side="left", padx=10)
+
+        entry.bind("<Key>", lambda e: err_label.configure(text=""))
+        entry.bind("<Return>", lambda e: on_confirm())
+        dlg.protocol("WM_DELETE_WINDOW", on_skip)
 
     def _show_login_screen(self):
         """展示登入畫面：上方【系統資訊】圓角框、下方【登入】圓角框"""
@@ -557,15 +664,19 @@ class App(ctk.CTk):
             tabview.add("更改密碼")
             tabview.add("自動更新時間")
             tabview.add("Teams 通知")
+            tabview.add("NAS 路徑設定")
             
             self._build_account_tab(tabview.tab("帳號管理"))
             self._build_password_tab(tabview.tab("更改密碼"))
             self._build_time_tab(tabview.tab("自動更新時間"))
             self._build_teams_tab(tabview.tab("Teams 通知"))
+            self._build_nas_tab(tabview.tab("NAS 路徑設定"))
         else:
-            # 普通使用者：只有「自動更新時間」分頁和頂部「登出」按鈕
+            # 普通使用者：顯示「自動更新時間」、「NAS 路徑設定」分頁和頂部「登出」按鈕
             tabview.add("自動更新時間")
+            tabview.add("NAS 路徑設定")
             self._build_time_tab(tabview.tab("自動更新時間"))
+            self._build_nas_tab(tabview.tab("NAS 路徑設定"))
             
         self.settings_page = page
         self.work_frame.pack_forget()
@@ -976,6 +1087,84 @@ class App(ctk.CTk):
             fg_color="#10b981", hover_color="#059669", command=on_save
         )
         btn_save.pack(side="left")
+
+    def _build_nas_tab(self, parent):
+        """NAS 路徑設定：設定公司 NAS 共用路徑 (config.json)"""
+        card = ctk.CTkFrame(parent, fg_color="#242424", corner_radius=10)
+        card.pack(fill="x", padx=40, pady=25)
+
+        ctk.CTkLabel(
+            card, text="【 NAS 路徑設定 】",
+            font=ctk.CTkFont(size=16, weight="bold"), text_color="#38bdf8"
+        ).pack(anchor="w", padx=20, pady=(16, 6))
+
+        desc_text = "• 若未填寫 (留白)，系統將自動切換為本機單機離線模式。"
+        ctk.CTkLabel(
+            card, text=desc_text, font=ctk.CTkFont(size=13),
+            text_color="#9ca3af", justify="left"
+        ).pack(anchor="w", padx=20, pady=(0, 16))
+
+        form_box = ctk.CTkFrame(card, fg_color="transparent")
+        form_box.pack(padx=20, pady=(0, 20), fill="x")
+
+        cfg = load_config()
+        current_nas = cfg.get("nas_folder", "")
+
+        ctk.CTkLabel(form_box, text="路徑：", font=("Helvetica", 13), anchor="w").pack(fill="x", pady=(4, 2))
+        entry_nas = ctk.CTkEntry(
+            form_box,
+            placeholder_text=r"例如: \\192.168.1.100\shared\SIS 或 Z:\SIS (留白＝單機模式)",
+            height=38,
+            width=500
+        )
+        entry_nas.insert(0, current_nas)
+        entry_nas.pack(anchor="w", pady=(0, 10))
+
+        lbl_status = ctk.CTkLabel(
+            form_box,
+            text=f"目前連線路徑：{current_nas if current_nas else '(未設定，單機離線模式)'}",
+            font=("Helvetica", 12),
+            text_color="#10b981" if current_nas else "#f59e0b",
+            anchor="w"
+        )
+        lbl_status.pack(fill="x", pady=(0, 16))
+
+        def on_save_nas():
+            val = entry_nas.get().strip()
+            if val:
+                status = check_lan(val)
+                if status == 'failed':
+                    if not messagebox.askyesno(
+                        "連線提示",
+                        f"目前系統似乎無法連線至此路徑：\n{val}\n\n(可能尚未連上公司網路，或路徑尚未建立)\n\n確定仍要儲存此路徑嗎？"
+                    ):
+                        return
+            ok, msg = save_config({"nas_folder": val})
+            if ok:
+                self.auth = AuthStore()
+                lbl_status.configure(
+                    text=f"目前連線路徑：{val if val else '(未設定，單機離線模式)'}",
+                    text_color="#10b981" if val else "#f59e0b"
+                )
+                if hasattr(self, '_refresh_account_list'):
+                    try:
+                        self._refresh_account_list()
+                    except Exception:
+                        pass
+                messagebox.showinfo(
+                    "儲存成功",
+                    f"NAS 連線設定已成功儲存並同步至 config.json！\n\n"
+                    f"路徑：{val if val else '已切換為單機離線模式'}\n\n"
+                    "提示：若更換了新的 NAS 帳號庫，建議稍後重新登入以載入最新使用者名單。"
+                )
+            else:
+                messagebox.showerror("儲存失敗", f"寫入 config.json 失敗：{msg}")
+
+        btn_save = ctk.CTkButton(
+            form_box, text="儲存", width=90, height=36,
+            fg_color="#10b981", hover_color="#059669", command=on_save_nas
+        )
+        btn_save.pack(anchor="w")
 
     def clear_all_data(self):
         """清除所有追蹤項目資料（保留分類本身）"""
