@@ -1,6 +1,7 @@
 import re
 import traceback
 from playwright.sync_api import sync_playwright
+from scrapers.browser_helper import launch_browser
 from bs4 import BeautifulSoup
 
 def check_jis_updates(items):
@@ -17,7 +18,7 @@ def check_jis_updates(items):
     
     try:
         with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)
+            browser = launch_browser(p, headless=True)
             context = browser.new_context(
                 user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
             )

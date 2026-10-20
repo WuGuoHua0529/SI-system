@@ -1,4 +1,5 @@
 from playwright.sync_api import sync_playwright
+from scrapers.browser_helper import launch_browser
 
 def check_rtca_updates(items):
     """
@@ -14,7 +15,7 @@ def check_rtca_updates(items):
     matched_updates = {}
     
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
+        browser = launch_browser(p, headless=True)
         context = browser.new_context(user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64)')
         
         for item in items:
